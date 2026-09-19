@@ -1,4 +1,4 @@
-package api
+package main
 
 import (
 	"encoding/json"
@@ -43,8 +43,13 @@ func safePath(r *http.Request) (string, bool) {
 	return p, true
 }
 
-func Handler(root *os.Root, assets fs.FS) http.Handler {
+func Handler(root *os.Root, assets fs.FS, stores ...*MessageStore) http.Handler {
 	mux := http.NewServeMux()
+	var messages *MessageStore
+	if len(stores) > 0 {
+		messages = stores[0]
+		messages.routes(mux)
+	}
 	mux.HandleFunc("GET /api/files", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := safePath(r)
 		if !ok {
@@ -111,6 +116,21 @@ func Handler(root *os.Root, assets fs.FS) http.Handler {
 		http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 	})
 	mux.HandleFunc("POST /api/upload", func(w http.ResponseWriter, r *http.Request) {
+		var message Message
+		chat := r.URL.Query().Get("chat") == "1"
+		if chat {
+			if messages == nil {
+				http.Error(w, "消息服务未启动", 503)
+				return
+			}
+			messages.uploads.Lock()
+			defer messages.uploads.Unlock()
+			var ok bool
+			message, ok = messages.uploadIdentity(w, r)
+			if !ok {
+				return
+			}
+		}
 		r.Body = http.MaxBytesReader(w, r.Body, 10<<30)
 		reader, err := r.MultipartReader()
 		if err != nil {
@@ -144,11 +164,23 @@ func Handler(root *os.Root, assets fs.FS) http.Handler {
 			http.Error(w, "无法保存文件，请检查目录权限", 500)
 			return
 		}
-		_, copyErr := io.Copy(file, part)
+		size, copyErr := io.Copy(file, part)
 		closeErr := file.Close()
 		if copyErr != nil || closeErr != nil {
 			root.Remove(name)
 			http.Error(w, "上传失败或文件超过 10 GB", 400)
+			return
+		}
+		if chat {
+			message.FileName = name
+			message.FileSize = size
+			saved, err := messages.add(message)
+			if err != nil {
+				root.Remove(name)
+				http.Error(w, "消息保存失败，请重新上传", 500)
+				return
+			}
+			reply(w, saved)
 			return
 		}
 		reply(w, map[string]string{"name": name})

@@ -1,2 +1,5 @@
 /localshare.exe
 /release/
+/dist/
+/api/dist/
+.localshare.db*
