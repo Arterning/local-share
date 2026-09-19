@@ -5,10 +5,12 @@ export type FileEntry = {
   directory: boolean
   modified: string
 }
-export type FileKind = "folder" | "text" | "image" | "video" | "audio" | "other"
+export type FileKind =
+  "folder" | "text" | "pdf" | "image" | "video" | "audio" | "other"
 export function fileKind(file: FileEntry): FileKind {
   if (file.directory) return "folder"
   const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
+  if (ext === "pdf") return "pdf"
   if (
     [
       "txt",

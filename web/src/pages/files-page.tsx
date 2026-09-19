@@ -24,6 +24,7 @@ import {
 const filters = [
   ["all", "全部文件"],
   ["text", "文本"],
+  ["pdf", "PDF"],
   ["image", "图片"],
   ["video", "视频"],
   ["audio", "音频"],

@@ -5,6 +5,7 @@ export function FileIcon({ file }: { file: FileEntry }) {
   const Icon = {
     folder: Folder,
     text: FileText,
+    pdf: FileText,
     image: Image,
     video: Video,
     audio: Music2,

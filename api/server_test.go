@@ -24,6 +24,22 @@ func TestFilesAndUpload(t *testing.T) {
 	}
 	defer root.Close()
 	handler := Handler(root, fstest.MapFS{"index.html": {Data: []byte("<html>app</html>")}})
+	if err := os.WriteFile(filepath.Join(dir, "sample.PDF"), []byte("%PDF-1.7\npreview"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, download := range []bool{false, true} {
+		url := "/api/content?path=sample.PDF"
+		want := "inline"
+		if download {
+			url += "&download=1"
+			want = "attachment"
+		}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest("GET", url, nil))
+		if w.Code != 200 || w.Header().Get("Content-Type") != "application/pdf" || !strings.HasPrefix(w.Header().Get("Content-Disposition"), want) || w.Header().Get("Content-Security-Policy") != "" || w.Header().Get("X-Content-Type-Options") != "nosniff" {
+			t.Fatalf("PDF response: %d %v", w.Code, w.Header())
+		}
+	}
 	request := func(url string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("GET", url, nil))

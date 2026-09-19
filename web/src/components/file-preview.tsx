@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react"
-import { Download, X, Copy } from "lucide-react"
+import { Download, X, Copy, ExternalLink } from "lucide-react"
 import { contentUrl, fileKind, formatSize, type FileEntry } from "@/lib/files"
 import { FileIcon } from "./file-icon"
+import "@/pdf.css"
 export function FilePreview({
   file,
   onClose,
@@ -108,6 +109,36 @@ export function FilePreview({
               <pre style={{ whiteSpace: wrap ? "pre-wrap" : "pre" }}>
                 {text ?? (error ? "" : "正在读取…")}
               </pre>
+            </>
+          )}
+          {kind === "pdf" && (
+            <>
+              <div className="pdf-toolbar">
+                <span>若无法显示，可新窗口打开或下载查看。</span>
+                <a
+                  className="secondary-button"
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink size={16} />
+                  新窗口打开
+                </a>
+              </div>
+              <object
+                className="pdf-viewer"
+                data={url}
+                type="application/pdf"
+                aria-label={`PDF 预览：${file.name}`}
+              >
+                <div className="empty-state">
+                  <p>当前浏览器无法内嵌预览 PDF。</p>
+                  <a className="primary-button" href={contentUrl(file, true)}>
+                    <Download size={17} />
+                    下载 PDF
+                  </a>
+                </div>
+              </object>
             </>
           )}
           {kind === "image" && (

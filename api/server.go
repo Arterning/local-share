@@ -105,6 +105,13 @@ func Handler(root *os.Root, assets fs.FS, stores ...*MessageStore) http.Handler 
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Security-Policy", "sandbox")
+		if strings.EqualFold(filepath.Ext(info.Name()), ".pdf") {
+			// Native PDF viewers need an unsandboxed document response.
+			// Force the PDF MIME type and keep nosniff to prevent HTML execution.
+			w.Header().Del("Content-Security-Policy")
+			w.Header().Set("Content-Type", "application/pdf")
+			w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": info.Name()}))
+		}
 		if r.URL.Query().Get("text") == "1" {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			io.Copy(w, io.LimitReader(f, 1024*1024))
