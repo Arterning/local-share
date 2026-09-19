@@ -12,7 +12,15 @@ pnpm --dir web install
 .\dist\localshare.exe
 ```
 
-`build.bat` 可从任意工作目录调用，会自动定位到脚本所在的项目根目录：先执行 `pnpm --dir web build`，再将 `web/dist` 镜像复制到 `api/dist`（清理旧前端资源），最后执行 `go build -trimpath -o dist/localshare.exe ./api`。任一步失败即停止。首次运行前先安装前端依赖。
+Linux：
+
+```bash
+pnpm --dir web install
+bash build.sh
+./dist/localshare
+```
+
+两个构建脚本均可从任意工作目录调用，会自动定位到脚本所在的项目根目录：先构建前端，再将 `web/dist` 复制到 `api/dist`（清理旧前端资源），最后进入 `api` Go 模块编译。Windows 输出 `dist/localshare.exe`，Linux 输出 `dist/localshare`。任一步失败即停止。首次运行前先安装前端依赖。`go.mod`、`go.sum` 均位于 `api` 目录。
 
 最终 exe 位于项目根目录的 `dist` 文件夹，默认上传文件和消息数据库也保存在该文件夹。构建脚本只更新其中的 exe，不清理已有共享文件和数据库。`api/dist` 仅存放供 embed 使用的前端构建资源。
 
@@ -30,7 +38,7 @@ pnpm --dir web install
 
 ```powershell
 .\build.bat
-go run ./api -dir ./dist
+go -C api run . -dir ../dist
 ```
 
 另开终端执行 `pnpm --dir web dev`。Vite 将 `/api` 转发至 `localhost:8080`。修改前端后，需要重新构建前端并重新编译 exe 才会更新嵌入资源。
@@ -59,4 +67,6 @@ go run ./api -dir ./dist
 
 接口：`GET /api/files?path=`、`GET /api/content?path=`、`POST /api/upload`（单文件 multipart，字段 `file`）。文本预览加 `text=1`，下载加 `download=1`。单次上传请求上限 10 GiB，文本预览截取前 1 MiB；视频和音频依赖浏览器支持的编码，不做转码。隐藏文件和符号链接不在列表展示，路径访问限制在共享目录内。
 
-验证：`pnpm --dir web build`、`pnpm --dir web lint`、`go test ./...`。
+Linux 开发时先执行 `bash build.sh`，后端同样使用 `go -C api run . -dir ../dist`。
+
+验证：先运行对应平台构建脚本，再执行 `pnpm --dir web lint`、`go -C api test ./...`。

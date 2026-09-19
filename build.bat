@@ -26,7 +26,7 @@ if not exist "dist" (
     mkdir "dist"
     if errorlevel 1 goto failed
 )
-go build -trimpath -o "dist\localshare.exe" ./api
+go -C api build -trimpath -o "..\dist\localshare.exe" .
 if errorlevel 1 goto failed
 
 echo.
