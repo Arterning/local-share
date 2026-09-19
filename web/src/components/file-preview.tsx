@@ -119,6 +119,7 @@ export function FilePreview({
           )}
           {kind === "video" && (
             <video
+              autoPlay
               controls
               playsInline
               preload="metadata"
