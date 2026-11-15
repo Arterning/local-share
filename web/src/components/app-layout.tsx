@@ -3,13 +3,17 @@ import {
   FolderClosed,
   HardDrive,
   Moon,
+  QrCode,
   Sun,
 } from "lucide-react"
 import { NavLink, Outlet, useLocation } from "react-router"
+import { useState } from "react"
+import { ShareQrDialog } from "@/components/share-qr-dialog"
 import { useTheme } from "@/components/theme-provider"
 export function AppLayout() {
   const { setTheme } = useTheme()
   const location = useLocation()
+  const [showQr, setShowQr] = useState(false)
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -44,6 +48,14 @@ export function AppLayout() {
             </span>
             <button
               className="icon-button"
+              title="手机扫码访问"
+              aria-label="手机扫码访问"
+              onClick={() => setShowQr(true)}
+            >
+              <QrCode size={19} />
+            </button>
+            <button
+              className="icon-button"
               title="切换浅色 / 深色主题"
               aria-label="切换浅色 / 深色主题"
               onClick={() =>
@@ -63,6 +75,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      {showQr && <ShareQrDialog onClose={() => setShowQr(false)} />}
     </div>
   )
 }

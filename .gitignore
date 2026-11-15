@@ -3,3 +3,4 @@
 /dist/
 /api/dist/
 .localshare.db*
+.pnpm-store
