@@ -54,6 +54,7 @@ bash build.sh
 - `api/internal/server/`：共享 HTTP 服务、目录与文件接口、消息存储和静态资源嵌入。
 - `api/cmd/server/main.go`：命令行服务入口。
 - `api/cmd/desktop/main.go`：Wails 桌面入口，通过本地 HTTP 服务提供前后端交互。
+- `build/appicon.svg`：桌面应用图标源文件；Windows 图标资源由 `api/tools/iconresource` 生成并链接进桌面 exe。
 - `api/internal/server/messages.go`：SQLite 消息存储和历史分页接口。
 
 ## 互传
