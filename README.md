@@ -1,10 +1,10 @@
 # LocalShare
 
-Go + React 局域网文件共享工具。前端使用 React Router 按页面维护，构建产物通过 Go embed 打进一个 exe。
+Go + React 局域网文件共享工具。前端使用 React Router，服务端和 Wails 桌面端共用同一套 HTTP 服务。
 
 ## 构建与运行
 
-需要 Go 1.25+、Node.js 和 pnpm。在项目根目录执行：
+需要 Go 1.26+、Node.js 和 pnpm。在项目根目录执行：
 
 ```powershell
 pnpm --dir web install
@@ -20,11 +20,11 @@ bash build.sh
 ./dist/localshare
 ```
 
-两个构建脚本均可从任意工作目录调用，会自动定位到脚本所在的项目根目录：先构建前端，再将 `web/dist` 复制到 `api/dist`（清理旧前端资源），最后进入 `api` Go 模块编译。Windows 输出 `dist/localshare.exe`，Linux 输出 `dist/localshare`。任一步失败即停止。首次运行前先安装前端依赖。`go.mod`、`go.sum` 均位于 `api` 目录。
+两个构建脚本均可从任意工作目录调用，会自动定位到项目根目录：先构建前端，再将 `web/dist` 复制到 `api/internal/server/dist`，最后分别编译 server 和 desktop。Windows 输出 `dist/localshare.exe`（服务端）与 `dist/localshare-desktop.exe`（桌面窗口）；Linux 输出 `dist/localshare` 与 `dist/localshare-desktop`。首次构建前端前需安装依赖；Go 模块文件位于 `api` 目录。
 
-最终 exe 位于项目根目录的 `dist` 文件夹，默认上传文件和消息数据库也保存在该文件夹。构建脚本只更新其中的 exe，不清理已有共享文件和数据库。`api/dist` 仅存放供 embed 使用的前端构建资源。
+最终程序位于项目根目录的 `dist` 文件夹，默认上传文件和消息数据库也保存在该文件夹。构建脚本只更新程序文件，不清理已有共享文件和数据库。`api/internal/server/dist` 存放供 embed 使用的前端构建资源。
 
-电脑打开 `http://localhost:8080`。手机连接同一局域网后，打开控制台打印的手机访问地址；Windows 如提示防火墙权限，允许专用网络访问。
+服务默认申请一个空闲端口，并在控制台打印访问地址。设置环境变量 `LOCALSHARE_PORT` 可指定端口；手机连接同一局域网后，打开控制台打印的手机访问地址。Windows 如提示防火墙权限，允许专用网络访问。桌面版在本机启动 Wails 窗口，窗口前端通过 HTTP 访问本地服务。
 
 默认共享目录是 **exe 所在目录**，不受启动时工作目录影响。上传始终保存到共享根目录，重名自动添加序号，不覆盖现有文件。共享范围供同一局域网内可连接此服务的设备访问。
 
@@ -34,14 +34,16 @@ bash build.sh
 
 ## 开发
 
-首次先构建前端，让 embed 有可嵌入的文件；在项目根目录运行后端：
+首次先构建前端，让 embed 有可嵌入的文件。在项目根目录用 `dev.bat` 启动 server 开发入口（监听 8080，共享目录为 `dist`）：
 
 ```powershell
 .\build.bat
-go -C api run . -dir ../dist
+.\dev.bat
 ```
 
 另开终端执行 `pnpm --dir web dev`。Vite 将 `/api` 转发至 `localhost:8080`。修改前端后，需要重新构建前端并重新编译 exe 才会更新嵌入资源。
+
+桌面版开发启动命令为 `go -C api run -tags desktop,dev ./cmd/desktop -dir ../dist`。`LOCALSHARE_PORT` 可为 server 或 desktop 指定端口；未设置时自动申请空闲端口。
 
 ## 页面和接口
 
@@ -49,9 +51,10 @@ go -C api run . -dir ../dist
 - `web/src/pages/transfer-page.tsx`：文件传输助手式会话，支持文本、文件消息、复制、预览与下载。
 - `web/src/components/file-preview.tsx`：文本、图片、音视频预览。
 - `web/src/components/app-layout.tsx`：响应式导航和主题切换。
-- `api/server.go`：目录列表、下载、媒体分段读取、上传和静态页面服务。
-- `api/main.go`：启动入口，嵌入 `api/dist` 前端资源。
-- `api/messages.go`：SQLite 消息存储和历史分页接口。
+- `api/internal/server/`：共享 HTTP 服务、目录与文件接口、消息存储和静态资源嵌入。
+- `api/cmd/server/main.go`：命令行服务入口。
+- `api/cmd/desktop/main.go`：Wails 桌面入口，通过本地 HTTP 服务提供前后端交互。
+- `api/internal/server/messages.go`：SQLite 消息存储和历史分页接口。
 
 ## 互传
 
@@ -67,6 +70,6 @@ go -C api run . -dir ../dist
 
 接口：`GET /api/files?path=`、`GET /api/content?path=`、`POST /api/upload`（单文件 multipart，字段 `file`）。文本预览加 `text=1`，下载加 `download=1`。单次上传请求上限 10 GiB，文本预览截取前 1 MiB；视频和音频依赖浏览器支持的编码，不做转码。隐藏文件和符号链接不在列表展示，路径访问限制在共享目录内。
 
-Linux 开发时先执行 `bash build.sh`，后端同样使用 `go -C api run . -dir ../dist`。
+Linux 开发时先执行 `bash build.sh`，然后运行 `go -C api run ./cmd/server -dir ../dist`。
 
 验证：先运行对应平台构建脚本，再执行 `pnpm --dir web lint`、`go -C api test ./...`。

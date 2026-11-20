@@ -2,5 +2,6 @@
 /release/
 /dist/
 /api/dist/
+/api/internal/server/dist/
 .localshare.db*
 .pnpm-store

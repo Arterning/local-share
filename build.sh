@@ -11,22 +11,24 @@ for tool in node pnpm go; do
     fi
 done
 
-printf '[1/3] Building frontend...\n'
+printf '[1/4] Building frontend...\n'
 pnpm --dir web build
 test -f web/dist/index.html
 
-printf '[2/3] Copying frontend to api/dist...\n'
+printf '[2/4] Copying frontend to api/internal/server/dist...\n'
 # Only this fixed, generated directory is replaced; root dist holds user files.
-if [[ -L "$project_dir/api" || -L "$project_dir/api/dist" ]]; then
+if [[ -L "$project_dir/api" || -L "$project_dir/api/internal" || -L "$project_dir/api/internal/server" || -L "$project_dir/api/internal/server/dist" ]]; then
     printf 'ERROR: Refusing to replace frontend assets through a symlink.\n' >&2
     exit 1
 fi
-rm -rf -- "$project_dir/api/dist"
-mkdir -p -- "$project_dir/api/dist"
-cp -R -- "$project_dir/web/dist/." "$project_dir/api/dist/"
+rm -rf -- "$project_dir/api/internal/server/dist"
+mkdir -p -- "$project_dir/api/internal/server/dist"
+cp -R -- "$project_dir/web/dist/." "$project_dir/api/internal/server/dist/"
 
-printf '[3/3] Building dist/localshare...\n'
+printf '[3/4] Building dist/localshare...\n'
 mkdir -p -- "$project_dir/dist"
-go -C api build -trimpath -o ../dist/localshare .
+go -C api build -trimpath -o ../dist/localshare ./cmd/server
+printf '[4/4] Building dist/localshare-desktop...\n'
+go -C api build -trimpath -tags desktop,production -o ../dist/localshare-desktop ./cmd/desktop
 
-printf '\nBuild complete: %s/dist/localshare\n' "$project_dir"
+printf '\nBuild complete:\n  %s/dist/localshare\n  %s/dist/localshare-desktop\n' "$project_dir" "$project_dir"
