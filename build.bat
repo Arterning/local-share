@@ -30,7 +30,7 @@ go -C api build -trimpath -o "..\dist\localshare.exe" ./cmd/server
 if errorlevel 1 goto failed
 
 echo [4/4] Building dist\localshare-desktop.exe...
-go -C api build -trimpath -tags desktop,production -o "..\dist\localshare-desktop.exe" ./cmd/desktop
+go -C api build -trimpath -tags desktop,production -ldflags "-H windowsgui" -o "..\dist\localshare-desktop.exe" ./cmd/desktop
 if errorlevel 1 goto failed
 
 echo.
