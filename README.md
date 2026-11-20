@@ -68,7 +68,7 @@ bash build.sh
 
 消息接口：`GET /api/messages`，通过 `after` 获取增量、`before` 加载历史（每次最多 100 条）；`POST /api/messages` 发送文本；`POST /api/upload?chat=1&senderId=...&senderName=...&requestId=...` 上传并创建文件消息。普通「文件」页上传不生成聊天消息。
 
-接口：`GET /api/files?path=`、`GET /api/content?path=`、`POST /api/upload`（单文件 multipart，字段 `file`）。文本预览加 `text=1`，下载加 `download=1`。单次上传请求上限 10 GiB，文本预览截取前 1 MiB；视频和音频依赖浏览器支持的编码，不做转码。隐藏文件和符号链接不在列表展示，路径访问限制在共享目录内。
+接口：`GET /api/access` 返回局域网访问地址；`GET /api/files?path=`、`GET /api/content?path=`、`POST /api/upload`（单文件 multipart，字段 `file`）。文本预览加 `text=1`，下载加 `download=1`。单次上传请求上限 10 GiB，文本预览截取前 1 MiB；视频和音频依赖浏览器支持的编码，不做转码。隐藏文件和符号链接不在列表展示，路径访问限制在共享目录内。
 
 Linux 开发时先执行 `bash build.sh`，然后运行 `go -C api run ./cmd/server -dir ../dist`。
 

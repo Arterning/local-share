@@ -6,11 +6,13 @@ import (
 	"io"
 	"io/fs"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -50,6 +52,24 @@ func Handler(root *os.Root, assets fs.FS, stores ...*MessageStore) http.Handler 
 		messages = stores[0]
 		messages.routes(mux)
 	}
+	mux.HandleFunc("GET /api/access", func(w http.ResponseWriter, r *http.Request) {
+		port := r.Header.Get("X-LocalShare-Port")
+		if number, err := strconv.Atoi(port); err != nil || number < 1 || number > 65535 {
+			_, port, _ = net.SplitHostPort(r.Host)
+		}
+		if port == "" {
+			port = "80"
+		}
+		addresses := []string{}
+		if interfaces, err := net.InterfaceAddrs(); err == nil {
+			for _, address := range interfaces {
+				if ipNet, ok := address.(*net.IPNet); ok && ipNet.IP.To4() != nil && !ipNet.IP.IsLoopback() {
+					addresses = append(addresses, "http://"+net.JoinHostPort(ipNet.IP.String(), port))
+				}
+			}
+		}
+		reply(w, map[string][]string{"addresses": addresses})
+	})
 	mux.HandleFunc("GET /api/files", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := safePath(r)
 		if !ok {

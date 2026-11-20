@@ -607,6 +607,25 @@ h1 {
 .share-qr-body > p {
   margin: 0;
 }
+.share-qr-address {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  width: 100%;
+  color: var(--dim);
+  font-size: 12px;
+  text-align: left;
+}
+.share-qr-address select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--ink);
+  background: var(--canvas);
+  font-size: 12px;
+}
 .share-qr-link {
   display: flex;
   align-items: center;
