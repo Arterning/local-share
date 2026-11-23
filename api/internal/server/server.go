@@ -89,7 +89,7 @@ func Handler(root *os.Root, assets fs.FS, stores ...*MessageStore) http.Handler 
 				for _, address := range interfaceAddresses {
 					if ipNet, ok := address.(*net.IPNet); ok {
 						ip := ipNet.IP.To4()
-						if ip != nil && ip.IsGlobalUnicast() {
+						if ip != nil && ip.IsPrivate() {
 							value := ip.String()
 							if _, exists := seen[value]; exists {
 								continue
