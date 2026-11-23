@@ -63,8 +63,11 @@ func Handler(root *os.Root, assets fs.FS, stores ...*MessageStore) http.Handler 
 		addresses := []string{}
 		if interfaces, err := net.InterfaceAddrs(); err == nil {
 			for _, address := range interfaces {
-				if ipNet, ok := address.(*net.IPNet); ok && ipNet.IP.To4() != nil && !ipNet.IP.IsLoopback() {
-					addresses = append(addresses, "http://"+net.JoinHostPort(ipNet.IP.String(), port))
+				if ipNet, ok := address.(*net.IPNet); ok {
+					ip := ipNet.IP.To4()
+					if ip != nil && ip.IsGlobalUnicast() {
+						addresses = append(addresses, "http://"+net.JoinHostPort(ip.String(), port))
+					}
 				}
 			}
 		}
