@@ -45,6 +45,21 @@ func safePath(r *http.Request) (string, bool) {
 	return p, true
 }
 
+func isVirtualNetworkInterface(name string) bool {
+	name = strings.ToLower(name)
+	markers := []string{
+		"virtual", "vmware", "vmnet", "vbox", "virtualbox", "hyper-v", "vethernet",
+		"wsl", "docker", "container", "veth", "virbr", "br-", "tun", "tap", "utun",
+		"wireguard", "tailscale", "zerotier", "openvpn", "hamachi",
+	}
+	for _, marker := range markers {
+		if strings.Contains(name, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 func Handler(root *os.Root, assets fs.FS, stores ...*MessageStore) http.Handler {
 	mux := http.NewServeMux()
 	var messages *MessageStore
@@ -61,12 +76,27 @@ func Handler(root *os.Root, assets fs.FS, stores ...*MessageStore) http.Handler 
 			port = "80"
 		}
 		addresses := []string{}
-		if interfaces, err := net.InterfaceAddrs(); err == nil {
-			for _, address := range interfaces {
-				if ipNet, ok := address.(*net.IPNet); ok {
-					ip := ipNet.IP.To4()
-					if ip != nil && ip.IsGlobalUnicast() {
-						addresses = append(addresses, "http://"+net.JoinHostPort(ip.String(), port))
+		if interfaces, err := net.Interfaces(); err == nil {
+			seen := make(map[string]struct{})
+			for _, networkInterface := range interfaces {
+				if networkInterface.Flags&net.FlagUp == 0 || networkInterface.Flags&net.FlagLoopback != 0 || isVirtualNetworkInterface(networkInterface.Name) {
+					continue
+				}
+				interfaceAddresses, err := networkInterface.Addrs()
+				if err != nil {
+					continue
+				}
+				for _, address := range interfaceAddresses {
+					if ipNet, ok := address.(*net.IPNet); ok {
+						ip := ipNet.IP.To4()
+						if ip != nil && ip.IsGlobalUnicast() {
+							value := ip.String()
+							if _, exists := seen[value]; exists {
+								continue
+							}
+							seen[value] = struct{}{}
+							addresses = append(addresses, "http://"+net.JoinHostPort(value, port))
+						}
 					}
 				}
 			}
