@@ -10,11 +10,13 @@ import {
   Paperclip,
   Send,
   Smartphone,
+  Trash2,
 } from "lucide-react"
 import { FileIcon } from "@/components/file-icon"
 import { FilePreview } from "@/components/file-preview"
 import { contentUrl, formatSize, type FileEntry } from "@/lib/files"
 import {
+  clearMessages,
   copyText,
   getIdentity,
   getMessages,
@@ -81,23 +83,42 @@ export function TransferPage() {
     let stopped = false,
       cursor = 0,
       initialized = false
+    let generation: string | null = null
     let timer: ReturnType<typeof setTimeout>
     const controller = new AbortController()
     async function sync() {
       let delay = 2000
       try {
-        const incoming = await getMessages(
+        const batch = await getMessages(
           cursor ? { after: cursor } : {},
           controller.signal
         )
         if (stopped) return
-        if (!initialized) {
+        let incoming = batch.messages
+        if (generation !== null && generation !== batch.generation) {
+          const latest = await getMessages({}, controller.signal)
+          if (stopped) return
+          incoming = latest.messages
+          generation = latest.generation
+          cursor = incoming.at(-1)?.id ?? 0
+          nearBottom.current = true
+          setMessages(incoming)
           setHasOlder(incoming.length === 100)
-          initialized = true
+          setNewMessages(false)
+        } else {
+          generation = batch.generation
+          if (!initialized) {
+            setHasOlder(incoming.length === 100)
+            initialized = true
+          }
+          if (incoming.length) {
+            cursor = incoming[incoming.length - 1].id
+            setMessages((old) => mergeMessages(old, incoming))
+            if (!nearBottom.current) setNewMessages(true)
+            if (incoming.length === 100) delay = 50
+          }
         }
         if (incoming.length) {
-          cursor = incoming[incoming.length - 1].id
-          setMessages((old) => mergeMessages(old, incoming))
           setPending((old) =>
             old.filter(
               (item) =>
@@ -108,8 +129,6 @@ export function TransferPage() {
                 )
             )
           )
-          if (!nearBottom.current) setNewMessages(true)
-          if (incoming.length === 100) delay = 50
         }
         setReady(true)
         setConnectionError("")
@@ -142,7 +161,8 @@ export function TransferPage() {
     if (!messages.length || loadingOlder) return
     setLoadingOlder(true)
     try {
-      const incoming = await getMessages({ before: messages[0].id })
+      const batch = await getMessages({ before: messages[0].id })
+      const incoming = batch.messages
       olderHeight.current = list.current?.scrollHeight ?? null
       setMessages((old) => mergeMessages(old, incoming))
       setHasOlder(incoming.length === 100)
@@ -150,6 +170,26 @@ export function TransferPage() {
       setNotice("历史消息加载失败，请重试")
     } finally {
       setLoadingOlder(false)
+    }
+  }
+  async function clearHistory() {
+    if (!messages.length || pending.length) return
+    if (
+      !window.confirm(
+        "确认清空所有设备上的互传消息？共享目录中的文件不会删除。"
+      )
+    )
+      return
+    try {
+      await clearMessages()
+      setMessages([])
+      setHasOlder(false)
+      setCopied(null)
+      setNewMessages(false)
+      nearBottom.current = true
+      setNotice("消息记录已清空")
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "清空消息失败")
     }
   }
   async function transmit(item: Pending) {
@@ -245,6 +285,15 @@ export function TransferPage() {
           <i />
           {connectionError ? "重新连接中" : ready ? "自动同步" : "连接中"}
         </span>
+        <button
+          className="chat-clear-button"
+          title="清空消息"
+          aria-label="清空消息"
+          disabled={!messages.length || pending.length > 0}
+          onClick={() => void clearHistory()}
+        >
+          <Trash2 size={17} />
+        </button>
       </header>
       <div className="chat-info">消息自动保留 · 文件保存到电脑共享目录</div>
       {connectionError && (

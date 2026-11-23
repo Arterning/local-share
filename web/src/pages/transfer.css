@@ -52,6 +52,19 @@
 .chat-status.offline i {
   background: #d9a449;
 }
+.chat-clear-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  color: var(--dim);
+}
+.chat-clear-button:hover:not(:disabled) {
+  color: #d56868;
+  background: var(--soft);
+}
 .chat-info {
   padding: 10px 20px;
   text-align: center;

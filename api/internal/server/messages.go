@@ -49,7 +49,12 @@ func OpenMessages(filename string) (*MessageStore, error) {
  file_size INTEGER NOT NULL DEFAULT 0,
  created_at TEXT NOT NULL,
  UNIQUE(sender_id,request_id)
- );`)
+ );
+ CREATE TABLE IF NOT EXISTS message_state (
+ id INTEGER PRIMARY KEY CHECK(id=1),
+ generation INTEGER NOT NULL DEFAULT 0
+ );
+ INSERT OR IGNORE INTO message_state (id, generation) VALUES (1, 0);`)
 	if err != nil {
 		db.Close()
 		return nil, err
@@ -112,7 +117,13 @@ func (s *MessageStore) routes(mux *http.ServeMux) {
 		} else {
 			query += " ORDER BY id DESC LIMIT 100"
 		}
-		rows, err := s.db.QueryContext(r.Context(), query, args...)
+		tx, err := s.db.BeginTx(r.Context(), &sql.TxOptions{ReadOnly: true})
+		if err != nil {
+			http.Error(w, "failed to read messages", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+		rows, err := tx.QueryContext(r.Context(), query, args...)
 		if err != nil {
 			http.Error(w, "无法读取消息", 500)
 			return
@@ -131,13 +142,47 @@ func (s *MessageStore) routes(mux *http.ServeMux) {
 			http.Error(w, "无法读取消息", 500)
 			return
 		}
+		if err := rows.Close(); err != nil {
+			http.Error(w, "failed to read messages", http.StatusInternalServerError)
+			return
+		}
+		var generation int64
+		if err := tx.QueryRowContext(r.Context(), "SELECT generation FROM message_state WHERE id=1").Scan(&generation); err != nil {
+			http.Error(w, "failed to read message state", http.StatusInternalServerError)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			http.Error(w, "failed to read messages", http.StatusInternalServerError)
+			return
+		}
 		if after == 0 {
 			for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
 				result[i], result[j] = result[j], result[i]
 			}
 		}
 		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Message-Generation", strconv.FormatInt(generation, 10))
 		reply(w, result)
+	})
+	mux.HandleFunc("DELETE /api/messages", func(w http.ResponseWriter, r *http.Request) {
+		tx, err := s.db.BeginTx(r.Context(), nil)
+		if err != nil {
+			http.Error(w, "failed to clear messages", http.StatusInternalServerError)
+			return
+		}
+		if _, err = tx.ExecContext(r.Context(), "DELETE FROM messages"); err == nil {
+			_, err = tx.ExecContext(r.Context(), "UPDATE message_state SET generation=generation+1 WHERE id=1")
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			http.Error(w, "failed to clear messages", http.StatusInternalServerError)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			http.Error(w, "failed to clear messages", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("POST /api/messages", func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 128<<10)

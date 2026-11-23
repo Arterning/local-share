@@ -10,6 +10,7 @@ export type Message = {
   fileSize: number
   createdAt: string
 }
+export type MessageBatch = { messages: Message[]; generation: string }
 export type Identity = { senderId: string; senderName: string }
 export function requestId() {
   const bytes = new Uint8Array(16)
@@ -34,7 +35,7 @@ export function getIdentity(): Identity {
 export async function getMessages(
   cursor: { after?: number; before?: number } = {},
   signal?: AbortSignal
-): Promise<Message[]> {
+): Promise<MessageBatch> {
   const query = new URLSearchParams(
     Object.entries(cursor).map(([key, value]) => [key, String(value)])
   )
@@ -45,7 +46,14 @@ export async function getMessages(
     cache: "no-store",
   })
   if (!response.ok) throw new Error("暂时无法同步消息，正在尝试重新连接")
-  return response.json()
+  return {
+    messages: await response.json(),
+    generation: response.headers.get("X-Message-Generation") ?? "0",
+  }
+}
+export async function clearMessages(): Promise<void> {
+  const response = await fetch("/api/messages", { method: "DELETE" })
+  if (!response.ok) throw new Error(await response.text())
 }
 export async function sendText(
   identity: Identity,
